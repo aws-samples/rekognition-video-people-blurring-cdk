@@ -52,12 +52,6 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
             actions=["rekognition:StartFaceDetection"],
             resources=["*"]))
 
-        #Allowing startFaceDetectFunction to start the StepFunctions workflow
-        startFaceDetectFunction.add_to_role_policy(_iam.PolicyStatement(
-            effect=_iam.Effect.ALLOW,
-            actions=["states:StartExecution"],
-            resources=["*"]))
-
         ## Lambda checking Rekognition job status 
         checkStatusFunction = lambda_.Function(self, "CheckStatusFunction", timeout=cdk.Duration.seconds(600), memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-check-status'),
@@ -116,7 +110,7 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
         )
 
         ## State in case of execution success
-        job_succeeded = sfn.Succeed(self,"Execution Succeeded")
+        job_succeeded = sfn.Succeed(self, "Execution Succeeded")
 
         ## Task checking the Rekognition job status
         update_job_status = tasks.LambdaInvoke(self, "Check Job Status",
@@ -158,9 +152,16 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
             timeout=cdk.Duration.minutes(15)
         )
 
-
         ## Adding the State Machine ARN to the ENV variables of the Lambda startFaceDetectFunction
         startFaceDetectFunction.add_environment(key="STATE_MACHINE_ARN", value=stateMachine.state_machine_arn)
+
+        # Allowing startFaceDetectFunction to start the StepFunctions workflow
+        startFaceDetectFunction.add_to_role_policy(_iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=["states:StartExecution"],
+            resources=[
+                stateMachine.state_machine_arn,
+                '{}/*'.format(stateMachine.state_machine_arn)]))
 
         
 
