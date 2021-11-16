@@ -41,19 +41,19 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
         #Allowing startFaceDetectFunction to access the S3 input bucket
         startFaceDetectFunction.add_to_role_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
-            actions=["s3:*"],
+            actions=["s3:PutObject", "s3:GetObject"],
             resources=[
                 inputImageBucket.bucket_arn,
                 '{}/*'.format(inputImageBucket.bucket_arn)]))
         #Allowing startFaceDetectFunction to call Rekognition
         startFaceDetectFunction.add_to_role_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
-            actions=["rekognition:*"],
+            actions=["rekognition:StartFaceDetection", ],
             resources=["*"]))
         #Allowing startFaceDetectFunction to start the StepFunctions workflow
         startFaceDetectFunction.add_to_role_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
-            actions=["states:*"],
+            actions=["states:StartExecution"],
             resources=["*"]))
 
         ## Lambda checking Rekognition job status 
@@ -66,7 +66,7 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
         #Allowing checkStatusFunction to call Rekognition
         checkStatusFunction.add_to_role_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
-            actions=["rekognition:*"],
+            actions=["rekognition:GetFaceDetection"],
             resources=["*"]))
 
         ## Lambda getting data from Rekognition
