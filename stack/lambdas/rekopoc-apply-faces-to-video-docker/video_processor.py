@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from moviepy.editor import *
+from moviepy.editor import VideoFileClip
 import os
 
 
@@ -92,6 +93,7 @@ def integrate_audio(original_video, output_video, audio_path='/tmp/audio.mp3'):
     my_clip = VideoFileClip(original_video)
     my_clip.audio.write_audiofile(audio_path)
     temp_location = '/tmp/output_video.mp4'
+    print("audio integration")
     print(original_video, output_video)
     # Join output video with extracted audio
     videoclip = VideoFileClip(output_video)
