@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from moviepy.editor import *
-from moviepy.editor import VideoFileClip
+from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip
 import os
 
 
@@ -93,14 +93,11 @@ def integrate_audio(original_video, output_video, audio_path='/tmp/audio.mp3'):
     my_clip = VideoFileClip(original_video)
     my_clip.audio.write_audiofile(audio_path)
     temp_location = '/tmp/output_video.mp4'
-    print("audio integration")
-    print(original_video, output_video)
     # Join output video with extracted audio
     videoclip = VideoFileClip(output_video)
-    audioclip = AudioFileClip(audio_path)
-    new_audioclip = CompositeAudioClip([audioclip])
-    videoclip.audio = new_audioclip
-    videoclip.write_videofile(temp_location, codec='libx264', temp_audiofile='/tmp/audio_temp.mp3')
+    # new_audioclip = CompositeAudioClip([audioclip])
+    # videoclip.audio = new_audioclip
+    videoclip.write_videofile(temp_location, codec='libx264', audio=audio_path, audio_codec='libmp3lame')
 
     os.rename(temp_location, output_video)
     # Delete audio
