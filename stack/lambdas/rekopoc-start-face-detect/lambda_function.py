@@ -47,15 +47,6 @@ def lambda_handler(event, context):
             logger.log(logging.ERROR, error_message)
             continue
 
-        # download file locally to /tmp retrieve metadata
-        try:
-            s3.download_file(bucket, key, local_filename)
-        except botocore.exceptions.ClientError:
-            error_message = 'Lambda role does not have permission to call GetObject for the input S3 bucket, or object does not exist.'
-            logger.log(logging.ERROR, error_message)
-            # add_failed(bucket, error_message, failed_records, key)
-            continue
-
         # use Amazon Rekognition to detect faces in video uploaded to Amazon S3
         try:
             job_id = start_face_detection(bucket, key, 1, reko)
