@@ -64,8 +64,8 @@ def apply_faces_to_video(final_timestamps, local_path_to_video, local_output, vi
                 upper_bound = int(int(t) / 1000 * frame_rate + frame_rate / 2) + 1
                 if (frame_counter >= lower_bound) and (frame_counter <= upper_bound):
                     for f in faces:
-                        x = int(f['Left'] * frame_width) - width_delta
-                        y = int(f['Top'] * frame_height) - height_delta
+                        x = max(int(f['Left'] * frame_width) - width_delta,0)
+                        y = max(int(f['Top'] * frame_height) - height_delta,0)
                         w = int(f['Width'] * frame_width) + 2 * width_delta
                         h = int(f['Height'] * frame_height) + 2 * height_delta
 
