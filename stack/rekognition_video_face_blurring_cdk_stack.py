@@ -1,14 +1,19 @@
-from aws_cdk import core as cdk
-from aws_cdk import aws_s3 as s3
-from aws_cdk import aws_iam as _iam
-import aws_cdk.aws_lambda as lambda_
+from constructs import Construct
+from aws_cdk import (
+    Duration,
+    Stack,
+    aws_lambda as lambda_,
+    aws_s3 as s3,
+    aws_iam as _iam,
+    aws_stepfunctions as sfn,
+    aws_stepfunctions_tasks as tasks,
+)
 from aws_cdk.aws_lambda_event_sources import S3EventSource
-import aws_cdk.aws_stepfunctions as sfn
-import aws_cdk.aws_stepfunctions_tasks as tasks
 
-class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
 
-    def __init__(self, scope: cdk.Construct, construct_id: str, **kwargs) -> None:
+class RekognitionVideoFaceBlurringCdkStack(Stack):
+
+    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         ###############################################################################################
@@ -24,19 +29,26 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
         ###############################################################################################
 
         ## Lambda triggering the Rekognition job and the StepFunctions workflow
-        startFaceDetectFunction = lambda_.Function(self, "StartFaceDetectFunction", timeout=cdk.Duration.seconds(600), memory_size=512,
+        startFaceDetectFunction = lambda_.Function(
+            self, "StartFaceDetectFunction",
+            timeout=Duration.seconds(600),
+            memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-start-face-detect'),
             handler="lambda_function.lambda_handler",
             runtime=lambda_.Runtime.PYTHON_3_7
         )
 
         #Adding S3 event sources triggers for the startFaceDetectFunction, allowing .mov and .mp4 files only
-        startFaceDetectFunction.add_event_source(S3EventSource(inputImageBucket,
-        events=[s3.EventType.OBJECT_CREATED],
-        filters=[s3.NotificationKeyFilter(suffix='.mov')]))
-        startFaceDetectFunction.add_event_source(S3EventSource(inputImageBucket,
-        events=[s3.EventType.OBJECT_CREATED],
-        filters=[s3.NotificationKeyFilter(suffix='.mp4')]))
+        startFaceDetectFunction.add_event_source(S3EventSource(
+            inputImageBucket,
+            events=[s3.EventType.OBJECT_CREATED],
+            filters=[s3.NotificationKeyFilter(suffix='.mov')]
+        ))
+        startFaceDetectFunction.add_event_source(S3EventSource(
+            inputImageBucket,
+            events=[s3.EventType.OBJECT_CREATED],
+            filters=[s3.NotificationKeyFilter(suffix='.mp4')]
+        ))
 
         #Allowing startFaceDetectFunction to access the S3 input bucket
         startFaceDetectFunction.add_to_role_policy(_iam.PolicyStatement(
@@ -44,41 +56,57 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
             actions=["s3:PutObject", "s3:GetObject"],
             resources=[
                 inputImageBucket.bucket_arn,
-                '{}/*'.format(inputImageBucket.bucket_arn)]))
+                '{}/*'.format(inputImageBucket.bucket_arn)]
+        ))
 
         #Allowing startFaceDetectFunction to call Rekognition
         startFaceDetectFunction.add_to_role_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=["rekognition:StartFaceDetection"],
-            resources=["*"]))
+            resources=["*"]
+        ))
 
         ## Lambda checking Rekognition job status 
-        checkStatusFunction = lambda_.Function(self, "CheckStatusFunction", timeout=cdk.Duration.seconds(600), memory_size=512,
+        checkStatusFunction = lambda_.Function(
+            self, "CheckStatusFunction",
+            timeout=Duration.seconds(600),
+            memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-check-status'),
             handler="lambda_function.lambda_handler",
-            runtime=lambda_.Runtime.PYTHON_3_7)
+            runtime=lambda_.Runtime.PYTHON_3_7
+        )
 
         #Allowing checkStatusFunction to call Rekognition
         checkStatusFunction.add_to_role_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=["rekognition:GetFaceDetection"],
-            resources=["*"]))
+            resources=["*"]
+        ))
 
         ## Lambda getting data from Rekognition
-        getTimestampsFunction = lambda_.Function(self, "GetTimestampsFunction", timeout=cdk.Duration.seconds(600), memory_size=512,
+        getTimestampsFunction = lambda_.Function(
+            self, "GetTimestampsFunction",
+            timeout=Duration.seconds(600),
+            memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-get-timestamps-faces'),
             handler="lambda_function.lambda_handler",
-            runtime=lambda_.Runtime.PYTHON_3_7)
+            runtime=lambda_.Runtime.PYTHON_3_7
+        )
 
         #Allowing getTimestampsFunction to call Rekognition
         getTimestampsFunction.add_to_role_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=["rekognition:GetFaceDetection"],
-            resources=["*"]))
+            resources=["*"]
+        ))
         
         ## Lambda blurring the faces on the video based on Rekognition data
-        blurFacesFunction = lambda_.DockerImageFunction(self, "BlurFacesFunction", timeout=cdk.Duration.seconds(600), memory_size=2048,
-            code=lambda_.DockerImageCode.from_image_asset("./stack/lambdas/rekopoc-apply-faces-to-video-docker"))
+        blurFacesFunction = lambda_.DockerImageFunction(
+            self, "BlurFacesFunction",
+            timeout=Duration.seconds(600),
+            memory_size=2048,
+            code=lambda_.DockerImageCode.from_image_asset("./stack/lambdas/rekopoc-apply-faces-to-video-docker")
+        )
 
         #Adding the S3 output bucket name as an ENV variable to the blurFacesFunction 
         blurFacesFunction.add_environment(key="OUTPUT_BUCKET", value=outputImageBucket.bucket_name)
@@ -91,8 +119,8 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
                 inputImageBucket.bucket_arn,
                 outputImageBucket.bucket_arn,
                 '{}/*'.format(inputImageBucket.bucket_arn),
-                '{}/*'.format(outputImageBucket.bucket_arn)]))
-        
+                '{}/*'.format(outputImageBucket.bucket_arn)]
+        ))
 
         ###############################################################################################
                                                 #StepFunctions#
@@ -100,7 +128,7 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
 
         ## State for waiting 1 second
         wait_1 = sfn.Wait(self, "Wait 1 Second",
-            time=sfn.WaitTime.duration(cdk.Duration.seconds(1))
+            time=sfn.WaitTime.duration(Duration.seconds(1))
         )
 
         ## State in case of execution failure
@@ -144,12 +172,12 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
         choice.otherwise(job_failed)
 
         ## Definition of the State Machine
-        definition = update_job_status.next(choice)
+        definition_body = sfn.DefinitionBody.from_chainable(update_job_status.next(choice))
 
         ## Actuel State Machine built with the above definition
         stateMachine = sfn.StateMachine(self, "StateMachine",
-            definition=definition,
-            timeout=cdk.Duration.minutes(15)
+            definition_body=definition_body,
+            timeout=Duration.minutes(15)
         )
 
         ## Adding the State Machine ARN to the ENV variables of the Lambda startFaceDetectFunction
@@ -161,7 +189,6 @@ class RekognitionVideoFaceBlurringCdkStack(cdk.Stack):
             actions=["states:StartExecution"],
             resources=[
                 stateMachine.state_machine_arn,
-                '{}/*'.format(stateMachine.state_machine_arn)]))
-
-        
+                '{}/*'.format(stateMachine.state_machine_arn)]
+        ))
 
