@@ -35,7 +35,7 @@ class RekognitionVideoFaceBlurringCdkStack(Stack):
             memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-start-face-detect'),
             handler="lambda_function.lambda_handler",
-            runtime=lambda_.Runtime.PYTHON_3_7
+            runtime=lambda_.Runtime.PYTHON_3_10
         )
 
         #Adding S3 event sources triggers for the startFaceDetectFunction, allowing .mov and .mp4 files only
@@ -73,7 +73,7 @@ class RekognitionVideoFaceBlurringCdkStack(Stack):
             memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-check-status'),
             handler="lambda_function.lambda_handler",
-            runtime=lambda_.Runtime.PYTHON_3_7
+            runtime=lambda_.Runtime.PYTHON_3_10
         )
 
         #Allowing checkStatusFunction to call Rekognition
@@ -90,7 +90,7 @@ class RekognitionVideoFaceBlurringCdkStack(Stack):
             memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-get-timestamps-faces'),
             handler="lambda_function.lambda_handler",
-            runtime=lambda_.Runtime.PYTHON_3_12
+            runtime=lambda_.Runtime.PYTHON_3_10
         )
 
         #Allowing getTimestampsFunction to call Rekognition
