@@ -90,7 +90,7 @@ class RekognitionVideoFaceBlurringCdkStack(Stack):
             memory_size=512,
             code=lambda_.Code.from_asset('./stack/lambdas/rekopoc-get-timestamps-faces'),
             handler="lambda_function.lambda_handler",
-            runtime=lambda_.Runtime.PYTHON_3_7
+            runtime=lambda_.Runtime.PYTHON_3_12
         )
 
         #Allowing getTimestampsFunction to call Rekognition
