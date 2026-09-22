@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: |
+          python -m pip install --require-hashes -r requirements-dev.txt
+          python -m pip check
+          npm ci --ignore-scripts
+      - name: Lint and unit tests
+        run: |
+          ruff check .
+          ruff format --check .
+          pytest -q
+      - name: Audit dependencies
+        run: |
+          pip-audit --strict --disable-pip --no-deps -r requirements.txt -r stack/lambdas/rekopoc-apply-faces-to-video-docker/requirements.txt
+          npm audit --audit-level=low
+      - name: Synthesize CloudFormation
+        run: npm run synth -- --quiet
+      - name: Build Lambda image
+        run: docker build --pull --platform linux/amd64 -t face-blur:test stack/lambdas/rekopoc-apply-faces-to-video-docker
+      - name: Exercise real video and audio processing in Lambda image
+        run: |
+          docker run --rm --read-only --tmpfs /tmp:rw,exec,size=1g --user 1000:1000 \
+            --network none --cap-drop ALL --entrypoint python \
+            -v "$PWD/scripts:/validation:ro" face-blur:test /validation/smoke_test_container.py

@@ -1,114 +1,208 @@
-# rekognition-video-face-blur-cdk-app
+# Rekognition video face blurring with AWS CDK
 
-## About
+This sample uses Amazon Rekognition Video to detect faces, AWS Step Functions to
+coordinate processing, and OpenCV to pixelate detected faces. A Python 3.14 Lambda
+container encodes the result as H.264 with optional AAC audio and saves it to S3.
 
-This code sample demonstrates how AWS Step Functions can be used to orchestrate AWS Lambda functions that call Amazon Rekognition for face detections, and use OpenCV to blur these detections per frame in the video. Customers can use Amazon Rekognition to enforce privacy/anonymity in videos.
+Original video | Blurred video
+:---:|:---:
+![input](images/input.gif) | ![output](images/output.gif)
 
-Original video frame             |  Blurred video image
-:-------------------------:|:-------------------------:
-![input](images/input.gif)  |  ![output](images/output.gif)
+## Architecture
 
-### Architecture
+![Architecture](images/rekognition-video-face-blur-cdk-app.png)
 
-This code sample demonstrates how AWS Step Functions can be used to orchestrate AWS Lambda functions that call Amazon Rekognition for face detections, and use OpenCV to blur these detections per frame in the video.
+1. Upload a video with a lowercase `.mp4` or `.mov` extension to the input bucket.
+2. An S3 notification starts face detection and a Standard Step Functions execution
+   for each object. Duplicate notifications reuse the detection job and execution.
+3. The workflow polls Rekognition every five seconds until it succeeds or fails.
+4. The results Lambda collects all result pages and writes bounding boxes and
+   video metadata to a private S3 bucket. Step Functions passes only the object
+   reference, avoiding its 256 KiB payload limit. Results expire after seven days.
+5. The container downloads the source and detections, clips bounding boxes to the
+   frame edges, pixelates faces, and encodes the video with its original audio when
+   present. The output bucket receives the video under the **same object key**.
+   Errors fail the workflow; incomplete processing is not reported as success.
 
-![rekognition-video-face-blur-cdk-app Architecture](images/rekognition-video-face-blur-cdk-app.png)
+The original diagram shows the main processing flow; the detection-results bucket
+is an additional intermediate store. All three buckets block public access, use
+S3-managed encryption, and require TLS. Lambda S3 permissions are scoped to their
+input, output, or intermediate roles.
 
-### Container image support in AWS Lambda
-Providing your serverless functions access to OpenCV is easier than ever with [Container Image Support](https://aws.amazon.com/blogs/aws/new-for-aws-lambda-container-image-support/). Instead of uploading a code package to AWS Lambda, your function's code instead resides in a Docker image that is hosted in [Amazon Elastic Container Registry](https://aws.amazon.com/ecr/).
+Workflow | States
+:---:|:---:
+![Workflow](images/rekognition-video-face-blur-cdk-app-step-functions-graph.png) | ![States](images/rekognition-video-face-blur-cdk-app-step-functions-graph-details.png)
 
-```dockerfile
-FROM public.ecr.aws/lambda/python:3.7
-# Install the function's dependencies
-# Copy file requirements.txt from your project folder and install
-# the requirements in the app directory.
-COPY requirements.txt  .
-RUN  pip install -r requirements.txt
-# Copy helper functions
-COPY video_processor.py video_processor.py
-# Copy handler function (from the local app directory)
-COPY  app.py  .
-# Overwrite the command by providing a different command directly in the template.
-CMD ["app.lambda_function"]
-```
+## Prerequisites
 
-### Project structure
+- Python **3.14** (the deployment tools, tests, and application Lambdas use it).
+- Node.js **22 or 24 LTS** and npm. CI uses Node.js 24.
+- Docker with a running daemon and support for `linux/amd64` builds. The image
+  platform is explicit so Apple Silicon builds match Lambda's x86_64 architecture.
+- [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html),
+  installed separately, and an AWS account/Region supporting Rekognition Video.
+- AWS credentials with permission to bootstrap/deploy CDK resources and use the
+  sample. Deployment and video processing incur AWS charges.
 
-This project contains source code and supporting files for a serverless application that you can deploy with the AWS CDK. It includes the following files and folders.
+The CDK library is pinned to **2.270.0** and the CLI to **2.1142.0**. Their version
+numbers are independent. The old AWS CLI v1/PyYAML dependency chain is no longer
+part of the Python environment.
 
-- rekognition_video_face_blurring_cdk/ - CDK python code for deploying the application
-- rekopoc-apply-faces-to-video-docker/ - Code for Lambda function: uses OpenCV to blur faces per frame in video, uploads final result to output S3 bucket.
-- rekopoc-check-status/ - Code for Lambda function: Gets face detection results for the Amazon Rekognition Video analysis.
-- rekopoc-get-timestamps-faces/ - Code for Lambda function: Gets bounding boxes of detected faces and associated timestamps.
-- rekopoc-start-face-detect/ - Code for Lambda function: is triggered by a S3 event when a new .mp4 or .mov video file is uploaded, starts asynchronous detection of faces in a stored video and starts the execution of AWS Step Functions' State Machine. 
-- requirements.txt - Required packages for deploying the AWS CDK application
+## Install and deploy
 
-The application uses several AWS resources, including AWS Step Functions, Lambda functions and S3 buckets. These resources are defined in the `rekognition_video_face_blurring_cdk_stack.py` that resides inside the rekognition_video_face_blurring_cdk folder in this project. You can update the python code to add AWS resources through the same deployment process that updates your application code.
-### AWS Step Functions workflow
-AWS Step Functions is a low-code visual workflow service used to orchestrate AWS services, automate business processes, and build serverless applications. 
-In this code sample, AWS Step Functions is used to orchestrate the calls and manage the flow of data between AWS Lambda functions. The AWS Step Functions workflow for this application consists of AWS Lambda functions SFN states as well as Choice, Wait, Fail and Succeed SFN states.
-
-AWS Step Functions Workflow |  AWS Step Functions (SFN) States
-:-------------------------:|:-------------------------:
-![rekognition-video-face-blur-cdk-app Step Functions Workflow](images/rekognition-video-face-blur-cdk-app-step-functions-graph.png) | ![rekognition-video-face-blur-cdk-app Step Functions Workflow](images/rekognition-video-face-blur-cdk-app-step-functions-graph-details.png) 
-
-## Deploy the sample application
-
-### Deploy the AWS CDK application
-The AWS Cloud Development Kit (AWS CDK) is an open source software development framework to define your cloud application resources using familiar programming languages. This project uses the AWS CDK in Python.  
-
-* AWS CDK - [Getting started with the AWS CDK](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html)
-* AWS CDK on GitHub - [AWS CDK on Github - Contribute!](https://github.com/aws/aws-cdk) 
-* AWS CDK API Reference (for Python) - [AWS CDK Python API Reference](https://docs.aws.amazon.com/cdk/api/latest/python/modules.html)
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
-
-To build and deploy your application for the first time, ensure you have Docker running and have configured your AWS's credentials. 
-The easiest way to satisfy this requirement is to issue the following command 
-```bash
-aws configure
-```
-After you have finished with these steps, run the following in your shell:
+From the repository root:
 
 ```bash
-npm install -g aws-cdk
-pip install -r requirements.txt
-cdk bootstrap
-cdk deploy
+python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install --require-hashes -r requirements.txt
+npm ci --ignore-scripts
+
+# Configure credentials, for example with AWS IAM Identity Center:
+aws configure sso
+aws sso login
+
+npx cdk bootstrap
+npx cdk synth
+npx cdk diff
+npx cdk deploy --outputs-file cdk.out/outputs.json
 ```
 
-- The first command will install the AWS CDK Toolkit globally using Node Package Manager.
-- The second command will install all the python packages needed by the AWS CDK using pip package manager.
-- The third command will provision initial resources that the AWS CDK needs to perform the deployment. 
-These resources include an Amazon S3 bucket for storing files and IAM roles that grant permissions needed to perform deployments.
-- Finally, `cdk deploy` will deploy the stack.
+Use `AWS_PROFILE` and `AWS_REGION` if needed for your account. Keep the virtual
+environment active when running CDK. The three small ZIP Lambdas use the AWS SDK
+provided by the managed Python runtime; the container installs its own locked SDK.
+No global CDK installation is needed.
 
+Deployment reports `InputBucketName`, `OutputBucketName`, and `StateMachineArn`:
 
-### Cleanup
-
-To delete the sample application that you created, use the AWS CDK. 
 ```bash
-cdk destroy
+aws s3 cp ./example.mp4 s3://INPUT_BUCKET_NAME/examples/example.mp4
+aws stepfunctions list-executions --state-machine-arn STATE_MACHINE_ARN --max-results 10
+# After the execution succeeds:
+aws s3 cp s3://OUTPUT_BUCKET_NAME/examples/example.mp4 ./blurred-example.mp4
 ```
 
-## Resources
+Use the values from the stack outputs in place of the uppercase placeholders.
+Input notifications are case sensitive: `.MP4` and `.MOV` do not trigger them.
+Use a unique key per input and do not overwrite it until processing completes.
+Re-uploading an object produces a new S3 sequencer and starts a new execution;
+redelivering the same notification does not rerun a completed execution.
 
-See the [Getting started with the AWS CDK](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html) for an introduction to important AWS CDK concepts and description of how to install and configure the AWS CDK.
+### Updating an existing deployment
 
-Next, you can browse the AWS Samples/AWS CDK repository on GitHub. These examples each provide a demonstration of a common service implementation, or infrastructure pattern that could be useful in your use of the CDK for building your own infrastructure: [AWS CDK Examples](https://github.com/aws-samples/aws-cdk-examples)
+The stack name and existing resource construct IDs are preserved, including the
+input/output buckets, four application functions, and state machine. This update
+adds a detection-results bucket, TLS bucket policies, and stack outputs. It
+upgrades runtimes in place and increases processing scratch space and timeouts.
+Run `npx cdk diff` against your environment before deploying, especially if you
+have customized this sample. Allow active executions to finish before upgrading;
+the blur handler also accepts the older inline detection payload format.
 
-## Credits
+Container base tags receive AWS patches, but deployed images do not update
+automatically. Rebuild and redeploy container assets when the base image changes;
+CDK reuses unchanged asset hashes, so also update the Dockerfile's base image tag
+or digest (or another asset file) to publish the rebuilt image.
 
-* Adrian Rosebrock, Blur and anonymize faces with OpenCV and Python, PyImageSearch,
-    https://www.pyimagesearch.com/2020/04/06/blur-and-anonymize-faces-with-opencv-and-python/,
-    accessed on 3 August 2021
-* Jon Slominski, <a href=https://github.com/aws-samples/rekognition-face-blur-sam-app>aws-samples/rekognition-face-blur-sam-app</a>, accessed on 3 August 2021
-* Video by <a href="https://www.pexels.com/@pixabay?utm_content=attributionCopyText&utm_medium=referral&utm_source=pexels">Pixabay</a> from <a href="https://www.pexels.com/video/video-of-people-walking-855564/?utm_content=attributionCopyText&utm_medium=referral&utm_source=pexels">Pexels</a>
+## Limits and behavior
 
-## Security
+- Rekognition accepts supported MP4/MOV videos smaller than 10 GiB. This is an
+  API ceiling, **not** this sample's practical video-size limit. The source,
+  MJPEG intermediate, and encoded output must fit together in Lambda's 10 GiB
+  temporary storage, and processing must finish within 15 minutes. The workflow
+  has a one-hour deadline. Start with short clips; use batch/container compute for
+  longer or higher-resolution videos.
+- The sample retains the original half-second forward window for each detection.
+  Fractional constant frame rates are preserved. Normalize variable-frame-rate
+  videos before using this frame-index-based sample. A mismatch between decoded
+  dimensions and Rekognition metadata fails processing rather than applying
+  bounding boxes to the wrong pixels.
+- Output video is H.264 with AAC audio if the source has audio. Silent input stays
+  silent. The output container follows the input extension. Odd frame dimensions
+  are padded to even dimensions for H.264 compatibility. Subtitles, chapters,
+  metadata tracks, and original codecs are not preserved.
+- Pixelation depends on Rekognition's detections. It cannot guarantee that every
+  face is found or that a person cannot be identified. Review results before using
+  them for privacy-sensitive purposes.
+- Failed asynchronous S3 invocations use Lambda's retry behavior. Check CloudWatch
+  logs and Step Functions execution history for failures; add alarms and failure
+  destinations appropriate to your deployment.
 
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+## Development and verification
 
-## License
+```bash
+source .venv/bin/activate
+python -m pip install --require-hashes -r requirements-dev.txt
+python -m pip check
+ruff check .
+ruff format --check .
+pytest -q
+npm run synth -- --quiet
+pip-audit --strict --disable-pip --no-deps -r requirements.txt -r stack/lambdas/rekopoc-apply-faces-to-video-docker/requirements.txt
+npm audit --audit-level=low
 
-This library is licensed under the MIT-0 License. See the LICENSE file.
+docker build --pull --platform linux/amd64 -t face-blur:test stack/lambdas/rekopoc-apply-faces-to-video-docker
+docker run --rm --read-only --tmpfs /tmp:rw,exec,size=1g --user 1000:1000 \
+  --network none --cap-drop ALL --entrypoint python \
+  -v "$PWD/scripts:/validation:ro" face-blur:test /validation/smoke_test_container.py
+```
 
+The smoke test runs the actual Lambda handler with generated MP4/MOV videos,
+with and without audio. It checks pixelation, frame count, fractional frame rate,
+H.264/AAC encoding, output keys, and temporary-file cleanup. Only S3 is replaced
+with local files. Unit tests cover boundary faces, pagination, duplicate events,
+batched events, processing failures, payload size, and synthesized infrastructure.
+These tests require no AWS credentials or deployment. CI runs these checks on PRs
+and on `main`; it does not deploy AWS resources.
+
+Direct dependencies live in `requirements.in` files; `requirements.txt` files
+include transitive pins and hashes. After editing a direct pin, regenerate all
+three locks with [uv](https://docs.astral.sh/uv/) and rerun CI:
+
+```bash
+uv pip compile --upgrade --python .venv/bin/python --generate-hashes requirements.in -o requirements.txt
+uv pip compile --upgrade --python .venv/bin/python --generate-hashes stack/lambdas/rekopoc-apply-faces-to-video-docker/requirements.in -o stack/lambdas/rekopoc-apply-faces-to-video-docker/requirements.txt
+uv pip compile --upgrade --python .venv/bin/python --generate-hashes requirements-dev.in -o requirements-dev.txt
+```
+
+Dependabot checks Python, npm, container, and GitHub Actions dependencies weekly.
+Check generated locks when reviewing its updates. GitHub Actions are pinned by
+commit SHA. See [PLAN.md](PLAN.md) for the modernization priorities.
+
+## Project structure
+
+- `app.py`, `cdk.json`, `stack/rekognition_video_face_blurring_cdk_stack.py`: CDK app.
+- `stack/lambdas/rekopoc-start-face-detect/`: S3 notification handler and job start.
+- `stack/lambdas/rekopoc-check-status/`: Rekognition status polling.
+- `stack/lambdas/rekopoc-get-timestamps-faces/`: Paginated results and S3 handoff.
+- `stack/lambdas/rekopoc-apply-faces-to-video-docker/`: Python 3.14 container,
+  OpenCV pixelation, and FFmpeg encoding. MoviePy is no longer required.
+- `tests/`, `scripts/smoke_test_container.py`, `.github/workflows/ci.yml`: Validation.
+- `requirements*.in`, `requirements*.txt`, `package-lock.json`: Dependency inputs and locks.
+
+## Cleanup
+
+```bash
+npx cdk destroy
+```
+
+Buckets are retained to protect source and output videos. After stack deletion,
+review and explicitly empty/delete the input, output, and detection-results
+buckets if you no longer need them. Detection objects expire after seven days,
+but the bucket remains. Review retained CloudWatch logs and CDK bootstrap/ECR
+assets separately; bootstrap resources may be shared with other stacks.
+
+## Resources and credits
+
+- [AWS CDK getting started](https://docs.aws.amazon.com/cdk/v2/guide/getting-started.html)
+- [Lambda Python container images](https://docs.aws.amazon.com/lambda/latest/dg/python-image.html)
+- [Lambda supported runtimes](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html)
+- [AWS CDK examples](https://github.com/aws-samples/aws-cdk-examples)
+- Adrian Rosebrock, [Blur and anonymize faces with OpenCV and Python](https://pyimagesearch.com/2020/04/06/blur-and-anonymize-faces-with-opencv-and-python/), accessed 3 August 2021.
+- Jon Slominski, [Rekognition face-blur SAM sample](https://github.com/aws-samples/rekognition-face-blur-sam-app), accessed 3 August 2021.
+- Original demonstration video by [Pixabay on Pexels](https://www.pexels.com/video/video-of-people-walking-855564/).
+
+## Security and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#security-issue-notifications) for security
+reporting. This sample is licensed under MIT-0; see [LICENSE](LICENSE). Dependencies
+and bundled FFmpeg binaries have their own licenses; review them before redistribution.

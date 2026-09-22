@@ -1,1 +1,15 @@
+# 0.1.0
 
+- Upgrade application Lambdas to Python 3.14 on Amazon Linux 2023, CDK to
+  2.270.0, and the pinned CDK CLI to 2.1142.0.
+- Replace obsolete dependency snapshots and CDK v1 packaging with current,
+  hash-locked dependencies; remove the unused AWS CLI/PyYAML installation chain.
+- Fix pixelation for faces crossing every frame boundary, including tiny regions.
+- Preserve fractional frame rates and optional audio with OpenCV and FFmpeg;
+  remove MoviePy and propagate processing failures before upload.
+- Start and deduplicate workflows for every S3 event record; paginate detections
+  into S3 to avoid Step Functions payload limits.
+- Preserve existing resource identities, restrict S3 permissions, require TLS,
+  expose deployment outputs, and explicitly build the x86_64 Lambda image.
+- Add regression tests, real container media checks, CI, dependency maintenance,
+  and updated deployment, limits, and cleanup documentation.

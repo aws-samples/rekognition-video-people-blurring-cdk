@@ -1,0 +1,5 @@
+-r requirements.in
+-r stack/lambdas/rekopoc-apply-faces-to-video-docker/requirements.in
+pytest==9.1.1
+ruff==0.16.8
+pip-audit==2.10.1
