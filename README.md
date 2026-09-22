@@ -1,4 +1,4 @@
-# Rekognition video face blurring with AWS CDK
+# Blur people faces in videos using Amazon Rekognition Video
 
 This sample uses Amazon Rekognition Video to detect faces, AWS Step Functions to
 coordinate processing, and OpenCV to pixelate detected faces. A Python 3.14 Lambda
