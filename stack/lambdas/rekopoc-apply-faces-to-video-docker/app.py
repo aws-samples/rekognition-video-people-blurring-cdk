@@ -1,67 +1,48 @@
 import json
 import logging
 import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import boto3
-import botocore
-import cv2
-
 from video_processor import apply_faces_to_video, integrate_audio
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+s3 = boto3.client("s3")
 
-reko = boto3.client('rekognition')
-s3 = boto3.client('s3')
-
-output_bucket = os.environ['OUTPUT_BUCKET']
 
 def lambda_function(event, context):
-    # download file locally to /tmp retrieve metadata
-    try:
-        response = event['response']
-        # get metadata of file uploaded to Amazon S3
-        bucket = event['s3_object_bucket']
-        key = event['s3_object_key']
-        filename = key.split('/')[-1]
-        local_filename = '/tmp/{}'.format(filename)
-        local_filename_output = '/tmp/anonymized-{}'.format(filename)
-    except KeyError:
-        error_message = 'Lambda invoked without S3 event data. Event needs to reference a S3 bucket and object key.'
-        logger.log(logging.ERROR, error_message)
-        # add_failed(bucket, error_message, failed_records, key)
+    bucket = event["s3_object_bucket"]
+    key = event["s3_object_key"]
+    suffix = Path(key).suffix.lower()
+    if suffix not in {".mp4", ".mov"}:
+        raise ValueError("Expected an MP4 or MOV video")
 
-    try:
-        s3.download_file(bucket, key, local_filename)
-    except botocore.exceptions.ClientError:
-        error_message = 'Lambda role does not have permission to call GetObject for the input S3 bucket, or object does not exist.'
-        logger.log(logging.ERROR, error_message)
-        # add_failed(bucket, error_message, failed_records, key)
-        # continue
+    # Keep compatibility with executions already carrying inline detection data.
+    if "detections_s3_bucket" in event:
+        result = s3.get_object(Bucket=event["detections_s3_bucket"], Key=event["detections_s3_key"])
+        with result["Body"] as body:
+            detections = json.load(body)
+    else:
+        detections = event
+    timestamps = detections["timestamps"]
+    metadata = detections["response"]["VideoMetadata"]
 
-        # get timestamps
-    try:
-        timestamps = event['timestamps']
-        apply_faces_to_video(timestamps, local_filename, local_filename_output, response["VideoMetadata"])
-    except Exception as e:
-        print(e)
-        # continue
-
-    try:
-        integrate_audio(local_filename, local_filename_output)
-    except Exception as e:
-        print(e)
-
-    # uploaded modified video to Amazon S3 bucket
-    try:
-        s3.upload_file(local_filename_output, output_bucket, key)
-    except boto3.exceptions.S3UploadFailedError:
-        error_message = 'Lambda role does not have permission to call PutObject for the output S3 bucket.'
-        # add_failed(bucket, error_message, failed_records, key)
-        # continue
-
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Faces in video blurred')
-    }
-
+    # Never derive local paths from object keys or share files between invocations.
+    # An exception exits before upload and is reported as a failed workflow task.
+    with TemporaryDirectory(prefix="face-blur-", dir="/tmp") as directory:
+        source = str(Path(directory) / f"input{suffix}")
+        intermediate = str(Path(directory) / "blurred.avi")
+        output = str(Path(directory) / f"output{suffix}")
+        s3.download_file(bucket, key, source)
+        frame_count = apply_faces_to_video(timestamps, source, intermediate, metadata)
+        integrate_audio(source, intermediate, output, expected_frames=frame_count)
+        s3.upload_file(
+            output,
+            os.environ["OUTPUT_BUCKET"],
+            key,
+            ExtraArgs={"ContentType": "video/quicktime" if suffix == ".mov" else "video/mp4"},
+        )
+    logger.info("Uploaded blurred video")
+    return {"statusCode": 200, "body": json.dumps("Faces in video blurred")}

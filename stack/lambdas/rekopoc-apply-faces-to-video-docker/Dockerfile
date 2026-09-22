@@ -1,16 +1,9 @@
-FROM public.ecr.aws/lambda/python:3.8
-# Install the function's dependencies
-# Copy file requirements.txt from your project folder and install
-# the requirements in the app directory.
+FROM public.ecr.aws/lambda/python:3.14
 
-COPY requirements.txt  .
-RUN  pip install -r requirements.txt
+COPY requirements.txt ${LAMBDA_TASK_ROOT}/requirements.txt
+RUN pip install --no-cache-dir --require-hashes --only-binary=:all: \
+    -r ${LAMBDA_TASK_ROOT}/requirements.txt
 
-# Copy helper functions
-COPY video_processor.py video_processor.py
+COPY video_processor.py app.py ${LAMBDA_TASK_ROOT}/
 
-# Copy handler function (from the local app directory)
-COPY  app.py  .
-
-# Overwrite the command by providing a different command directly in the template.
 CMD ["app.lambda_function"]

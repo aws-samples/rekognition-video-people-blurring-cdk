@@ -1,2 +1,11 @@
-*/__pycache__/*
-/cdk.out/*
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+node_modules/
+cdk.out/
+cdk.context.json

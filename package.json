@@ -1,0 +1,16 @@
+{
+  "name": "rekognition-video-people-blurring-cdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pinned AWS CDK CLI for the Python CDK application",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "cdk": "cdk",
+    "synth": "cdk synth"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.1142.0"
+  }
+}
