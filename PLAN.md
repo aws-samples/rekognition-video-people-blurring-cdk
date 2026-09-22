@@ -14,7 +14,7 @@ construct IDs, input formats, output keys, and face-blurring workflow.
    Add handler, media, and infrastructure tests; run lint, dependency audits,
    CDK synthesis, and a real Lambda container smoke test; refresh setup,
    deployment, limits, and cleanup documentation.
-4. **Delivery and backlog closure**: In progress.
+4. **Delivery and backlog closure**: Tracked in [PR #21](https://github.com/aws-samples/rekognition-video-people-blurring-cdk/pull/21).
    Merge the validated consolidated PR, close resolved issues and superseded
    PRs #11, #12, #13, and #17 with links to the replacement, and verify that no
    open issues or PRs remain.
@@ -28,5 +28,7 @@ construct IDs, input formats, output keys, and face-blurring workflow.
   access, as a non-root user, with a read-only filesystem and writable `/tmp`.
 - Ruff lint/format, dependency consistency, Python dependency audits (deployment,
   container, and development), npm audit, and CDK synthesis pass.
+- A clean Python 3.14 pip installation succeeds, and the built wheel includes the
+  CDK stack and all Lambda assets.
 - Live AWS deployment is not part of these checks. Review `cdk diff` in the target
   account and test a representative clip when deploying.
