@@ -14,13 +14,13 @@ aws-cdk-asset-node-proxy-agent-v6==2.1.3 \
     --hash=sha256:1724285cb3ab50494f4c641c236d0e57d1f2da82bda71d15585a203dc0e75516 \
     --hash=sha256:b8adb536ad19f8a44e94054c712f5ea5ff487cc3c10ecdc158846b29ca2cbbe5
     # via aws-cdk-lib
-aws-cdk-cloud-assembly-schema==54.24.0 \
-    --hash=sha256:67b79e635e2c670f988f2aae9bc4b4c63af1fc03138cc28631e6c18c31cbb68e \
-    --hash=sha256:8461b9aa1f8ddb0c8b457536010de0c5891368a183a993ede58e2c705c6635d7
+aws-cdk-cloud-assembly-schema==55.4.0 \
+    --hash=sha256:6171413a327abba6f2a25aef2700dfe174e519458b0757e4babacc7abd69de64 \
+    --hash=sha256:f58506906fbea5689a98687359905977c23f746ec465351f522b8c2bf36a2ba8
     # via aws-cdk-lib
-aws-cdk-lib==2.270.0 \
-    --hash=sha256:2b812c5abc8987b2022fb0b51c4664afed2a18b49bb4478c2a794afd586091a0 \
-    --hash=sha256:a484f1b8d7477f44069fcd1dbc616aeabf3a776773310e3e114c305efb24303e
+aws-cdk-lib==2.275.0 \
+    --hash=sha256:0902d7368e4600588cad9eab9124ade10d7d9d463ccf86ae18272e4369b1936b \
+    --hash=sha256:223e5b8c67bee9802d714493b380251a2e8ce55c8c477e5d44ca2c85f3b322ee
     # via -r requirements.in
 cattrs==26.2.0 \
     --hash=sha256:3cf49f69df8326bcf17a3cb3d3d3ec4a856858fe3a7473746c9044c317d3ba55 \
@@ -32,9 +32,9 @@ constructs==10.8.1 \
     # via
     #   -r requirements.in
     #   aws-cdk-lib
-jsii==1.140.0 \
-    --hash=sha256:454c874d963a862f6b90bc013c45a720e51292659f57249d9cae7cb2a189ec0e \
-    --hash=sha256:aa24f27d15d8d7db1ff32a9c56074bc87e728b30330ead97fb149419a3721a50
+jsii==1.142.0 \
+    --hash=sha256:16d6b3e25bbaa081dd39eabe910b07f646fe4988302d8aae401690f247baf7df \
+    --hash=sha256:2fe1c5f2a5a405a5fbaaafb8b362cdf6a30171589e508c01682f33c5d529172f
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-node-proxy-agent-v6
