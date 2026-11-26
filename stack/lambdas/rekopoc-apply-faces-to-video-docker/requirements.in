@@ -1,4 +1,4 @@
-boto3==1.43.99
-imageio-ffmpeg==0.6.0
-numpy==2.5.3
-opencv-python-headless==5.0.0.93
+boto3==1.44.10
+imageio-ffmpeg==0.8.1
+numpy==2.5.5
+opencv-python-headless==5.1.0.95
